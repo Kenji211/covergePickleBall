@@ -121,10 +121,42 @@ export default function Page() {
     setIsConfirmOpen(true);
   };
 
-  const handleFinalConfirm = () => {
-    setIsConfirmOpen(false);
-    setStep('success');
-  };
+  const handleFinalConfirm = async () => {
+  setIsConfirmOpen(false);
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/api/payments/create/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fullName,
+        gcashNumber: gcash,
+        courtId: "court-1", // or dynamic
+        startTime,
+        endTime,
+        reservationDate: selectedDates.map(d => d.toISOString()),
+        totalAmount // OPTIONAL (server recalculates anyway)
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert("Payment initialization failed");
+      return;
+    }
+
+    // 🚀 Redirect to PayMongo checkout
+    window.location.href = data.checkoutUrl;
+
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
+  }
+};
+
 
   // Animation variants for creative slide transition
   const variants = {
