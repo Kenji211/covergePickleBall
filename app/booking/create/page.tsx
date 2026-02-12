@@ -588,6 +588,7 @@ export default function CreateBooking() {
                     <div className="flex flex-col md:flex-row gap-6">
                         {/* Calendar */}
                         <Calendar
+                            required
                             mode="multiple"
                             selected={selectedDates}
                             onSelect={setSelectedDates}
