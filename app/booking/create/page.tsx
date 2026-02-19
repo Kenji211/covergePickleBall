@@ -50,7 +50,7 @@ export default function CreateBooking() {
         firstName: string
         lastName: string
         gcashNumber: string
-        gcashQrUrl: string
+        qrCode: string
     }
 
     interface ReservedSlot {
@@ -299,6 +299,7 @@ export default function CreateBooking() {
                 dateTimeSlots: slots,
                 managerName: `${area?.manager?.firstName} ${area?.manager?.lastName}`,
                 gcashNumber: area?.manager?.gcashNumber,
+                qrCode: area?.manager?.qrCode,
             }
 
             await fetch(`${apiBaseUrl}/api/bookings/send-details-to-email/`, {
@@ -649,8 +650,8 @@ export default function CreateBooking() {
                                             disabled={!activeDateKey || reserved}
                                             onClick={() => toggleTimeSlotForActiveDate(time)}
                                             className={`p-3 rounded-lg border-2 text-sm font-medium transition
-                                                        disabled:opacity-50 disabled:cursor-not-allowed 
-                                                    ${reserved
+                                                            disabled:opacity-50 disabled:cursor-not-allowed 
+                                                        ${reserved
                                                     ? "border-gray-200 bg-gray-100 text-gray-400"
                                                     : selectedTimesActive.includes(time)
                                                         ? "border-blue-600 bg-blue-100 text-blue-800"
@@ -731,7 +732,7 @@ export default function CreateBooking() {
                     firstName: area?.manager?.firstName || '',
                     lastName: area?.manager?.lastName || '',
                     gcashNumber: area?.manager?.gcashNumber || '',
-                    gcashQrUrl: area?.manager?.gcashQrUrl,
+                    qrCode: area?.manager?.qrCode,
                 }}
                 bookingResult={bookingResult}
             />

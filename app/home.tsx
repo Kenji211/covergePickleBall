@@ -1,8 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, CalendarCheck, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -77,8 +75,14 @@ export default function Home() {
 
     const handleBookingClick = () => {
         setIsBookingLoading(true);
-        router.push("/booking/area");
-    };
+        // Check if user is authenticated
+        const token = localStorage.getItem("firebaseToken");
+        if (!token) {
+            router.push("/auth");
+            return;
+        } else
+            router.push("/booking/area");
+    }
 
     // Loading skeleton
     if (isLoading) {
@@ -205,7 +209,7 @@ export default function Home() {
                         </p>
                         <div className="h-1 w-24 bg-blue-400 mx-auto mb-8"></div>
                     </div>
-                    
+
                     {/* How It Works */}
                     <div className="">
                         <h3 className="text-[42px] md:text-[60px] text-center font-bold mb-8 text-black">How It Works</h3>
