@@ -23,6 +23,11 @@ interface ConfirmationDialogProps {
             date: string
             times: string[]
         }[]
+        selectedEquipments?: Array<{
+            name: string
+            quantity: number
+            price: number
+        }>
     }
     managerData?: {
         firstName: string
@@ -134,6 +139,26 @@ export function ConfirmationDialog({
                             </div>
                         </div>
 
+                        {/* ==================== NEW: RENTED EQUIPMENTS ==================== */}
+                        {bookingData.selectedEquipments && bookingData.selectedEquipments.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-3">Rented Equipments</h3>
+                                <div className="space-y-3">
+                                    {bookingData.selectedEquipments.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            <div>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-xs text-gray-500">Quantity: {item.quantity}</p>
+                                            </div>
+                                            <p className="font-semibold text-gray-800">
+                                                ₱{item.price * item.quantity}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Total Amount */}
                         <div className="mb-6 bg-gradient-to-r from-blue-500 to-blue-600 p-4 rounded-lg">
                             <div className="flex justify-between items-center">
@@ -202,6 +227,25 @@ export function ConfirmationDialog({
                                 ))}
                             </div>
                         </div>
+
+                        {bookingData.selectedEquipments && bookingData.selectedEquipments.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="font-semibold text-gray-800 mb-3">Rented Equipments</h3>
+                                <div className="space-y-3">
+                                    {bookingData.selectedEquipments.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            <div>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                                            </div>
+                                            <p className="font-semibold text-gray-800">
+                                                ₱{item.price * item.quantity}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Booking Summary */}
                         <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">

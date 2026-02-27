@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { getFirestore, collection, setDoc, doc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { setDoc, doc } from "firebase/firestore";
 import { Mail, Lock, User, Loader2, Eye, EyeOff } from "lucide-react";
 
 interface SignupProps {
@@ -13,7 +13,6 @@ interface SignupProps {
 
 export default function Signup({ onSwitchToLogin }: SignupProps) {
     const router = useRouter();
-    const db = getFirestore();
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -68,7 +67,7 @@ export default function Signup({ onSwitchToLogin }: SignupProps) {
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 email: formData.email,
-                role: "user", // Default role is 'user'
+                role: "user",
                 createdAt: new Date(),
                 updatedAt: new Date(),
             });

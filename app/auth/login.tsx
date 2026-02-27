@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 
 interface LoginProps {
@@ -13,7 +13,6 @@ interface LoginProps {
 
 export default function Login({ onSwitchToSignup }: LoginProps) {
     const router = useRouter();
-    const db = getFirestore();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);

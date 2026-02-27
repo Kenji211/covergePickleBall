@@ -58,7 +58,7 @@ export default function Page() {
             </button>
           </div>
 
-          <h1 className="text-xl font-bold text-center w-1/3">PickBook</h1>
+          <h1 className="text-xl font-bold text-center w-1/3">PickleBook</h1>
 
           <div className="w-1/3 md:hidden"></div>
           <nav className="hidden md:flex pl-14 gap-14 justify-end w-1/3">
@@ -115,7 +115,7 @@ export default function Page() {
 
       {/* Footer */}
       <footer className="bg-blue-50 text-center py-6 text-slate-700">
-        &copy; {new Date().getFullYear()} PickBook. All rights reserved.
+        &copy; {new Date().getFullYear()} PickleBook. All rights reserved.
       </footer>
     </div>
   );

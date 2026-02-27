@@ -202,7 +202,7 @@ export default function Home() {
                             Your Game, Your Court, Your Community.
                         </h2>
                         <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-12">
-                            PickBook is Koronadal's premier multi-venue pickleball reservation platform.
+                            PickleBook is Koronadal's premier multi-venue pickleball reservation platform.
                             Connect with top-rated courts across the city, book your favorite spots in seconds, and
                             join a thriving community of passionate pickleball players. Whether you're a casual player
                             or a competitive enthusiast, find the perfect court and elevate your game today.
