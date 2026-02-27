@@ -98,7 +98,7 @@ function RouteDisplay({
                 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
                 const response = await fetch(
-                    `${apiBaseUrl}/api/directions/`,
+                    `${apiBaseUrl}/api/booking/directions/`,
                     {
                         method: 'POST',
                         headers: {

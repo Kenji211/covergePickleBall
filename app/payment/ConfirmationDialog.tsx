@@ -23,12 +23,17 @@ interface ConfirmationDialogProps {
             date: string
             times: string[]
         }[]
+        selectedEquipments?: Array<{
+            name: string
+            quantity: number
+            price: number
+        }>
     }
     managerData?: {
         firstName: string
         lastName: string
         gcashNumber: string
-        gcashQrUrl?: string
+        qrCode?: string
     }
     bookingResult?: {
         id?: string
@@ -134,6 +139,26 @@ export function ConfirmationDialog({
                             </div>
                         </div>
 
+                        {/* ==================== NEW: RENTED EQUIPMENTS ==================== */}
+                        {bookingData.selectedEquipments && bookingData.selectedEquipments.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-3">Rented Equipments</h3>
+                                <div className="space-y-3">
+                                    {bookingData.selectedEquipments.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            <div>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-xs text-gray-500">Quantity: {item.quantity}</p>
+                                            </div>
+                                            <p className="font-semibold text-gray-800">
+                                                ₱{item.price * item.quantity}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Total Amount */}
                         <div className="mb-6 bg-gradient-to-r from-blue-500 to-blue-600 p-4 rounded-lg">
                             <div className="flex justify-between items-center">
@@ -203,6 +228,25 @@ export function ConfirmationDialog({
                             </div>
                         </div>
 
+                        {bookingData.selectedEquipments && bookingData.selectedEquipments.length > 0 && (
+                            <div className="mb-6">
+                                <h3 className="font-semibold text-gray-800 mb-3">Rented Equipments</h3>
+                                <div className="space-y-3">
+                                    {bookingData.selectedEquipments.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                            <div>
+                                                <p className="font-medium">{item.name}</p>
+                                                <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                                            </div>
+                                            <p className="font-semibold text-gray-800">
+                                                ₱{item.price * item.quantity}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Booking Summary */}
                         <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
                             <h3 className="font-semibold text-gray-800 mb-3">Booking Details</h3>
@@ -242,15 +286,22 @@ export function ConfirmationDialog({
 
                                     <div className="grid md:grid-cols-2 gap-6">
                                         {/* GCash QR Code */}
-                                        {managerData.gcashQrUrl && (
+                                        {managerData.qrCode ? (
                                             <div className="flex flex-col items-center">
                                                 <p className="text-sm text-gray-600 mb-3 font-semibold">Option 1: Scan QR Code</p>
                                                 <div className="bg-white p-2 rounded-lg border-2 border-gray-300">
                                                     <img
-                                                        src={managerData.gcashQrUrl}
+                                                        src={managerData.qrCode}
                                                         alt="GCash QR Code"
                                                         className="w-48 h-48 rounded"
                                                     />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center">
+                                                <p className="text-sm text-gray-600 mb-3 font-semibold">Option 1: QR Code</p>
+                                                <div className="bg-gray-100 p-2 rounded-lg border-2 border-dashed border-gray-300 w-52 h-52 flex items-center justify-center">
+                                                    <p className="text-center text-gray-500 text-sm">No QR code set by owner</p>
                                                 </div>
                                             </div>
                                         )}

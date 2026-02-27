@@ -1,8 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, CalendarCheck, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -77,8 +75,14 @@ export default function Home() {
 
     const handleBookingClick = () => {
         setIsBookingLoading(true);
-        router.push("/booking/area");
-    };
+        // Check if user is authenticated
+        const token = localStorage.getItem("firebaseToken");
+        if (!token) {
+            router.push("/auth");
+            return;
+        } else
+            router.push("/booking/area");
+    }
 
     // Loading skeleton
     if (isLoading) {
@@ -198,14 +202,14 @@ export default function Home() {
                             Your Game, Your Court, Your Community.
                         </h2>
                         <p className="text-lg md:text-xl text-slate-600 max-w-3xl mx-auto mb-12">
-                            PickBook is Koronadal's premier multi-venue pickleball reservation platform.
+                            PickleBook is Koronadal's premier multi-venue pickleball reservation platform.
                             Connect with top-rated courts across the city, book your favorite spots in seconds, and
                             join a thriving community of passionate pickleball players. Whether you're a casual player
                             or a competitive enthusiast, find the perfect court and elevate your game today.
                         </p>
                         <div className="h-1 w-24 bg-blue-400 mx-auto mb-8"></div>
                     </div>
-                    
+
                     {/* How It Works */}
                     <div className="">
                         <h3 className="text-[42px] md:text-[60px] text-center font-bold mb-8 text-black">How It Works</h3>

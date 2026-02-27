@@ -10,6 +10,9 @@ import {
 } from '@/components/ui/carousel'
 import { useSearchParams } from 'next/navigation'
 import { ConfirmationDialog } from '@/app/payment/ConfirmationDialog'
+import { useAuth } from '@/lib/auth-context'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export default function CreateBooking() {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
@@ -17,6 +20,9 @@ export default function CreateBooking() {
     const [showDialog, setShowDialog] = useState(false)
     const [dialogStage, setDialogStage] = useState<'confirmation' | 'pending'>('confirmation')
     const [bookingResult, setBookingResult] = useState<any>(null)
+    const searchParams = useSearchParams()
+    const areaId = searchParams.get('areaId')
+    const { user, loading: authLoading } = useAuth()
 
     // form
     const [formData, setFormData] = useState({
@@ -32,6 +38,7 @@ export default function CreateBooking() {
     const [selectedDates, setSelectedDates] = useState<Date[]>([])
     const [area, setArea] = useState<Area | null>(null)
     const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null)
+    const [selectedEquipments, setSelectedEquipments] = useState<Record<string, number>>({}) // equipmentId -> quantity
 
     // NEW: selected time slots PER DATE
     const [selectedTimeSlotsByDate, setSelectedTimeSlotsByDate] = useState<Record<string, string[]>>({})
@@ -46,11 +53,18 @@ export default function CreateBooking() {
         courtImageUrl?: string
     }
 
+    interface Equipment {
+        id: string
+        name: string
+        price: number
+        quantity: number // available stock
+    }
+
     interface ManagerInfo {
         firstName: string
         lastName: string
         gcashNumber: string
-        gcashQrUrl: string
+        qrCode: string
     }
 
     interface ReservedSlot {
@@ -65,6 +79,7 @@ export default function CreateBooking() {
         closingTime: string
         areaImageUrl?: string
         courts: Court[]
+        equipments?: Equipment[]
         manager: ManagerInfo
         bookings: ReservedSlot[]
     }
@@ -93,6 +108,16 @@ export default function CreateBooking() {
         },
         []
     )
+
+    const handleEquipmentQuantityChange = (equipmentId: string, quantity: number) => {
+        setSelectedEquipments(prev => {
+            if (quantity <= 0) {
+                const { [equipmentId]: _, ...rest } = prev
+                return rest
+            }
+            return { ...prev, [equipmentId]: quantity }
+        })
+    }
 
     const formatDateKey = (date: Date) => {
         const year = date.getFullYear()
@@ -190,27 +215,101 @@ export default function CreateBooking() {
     }, [sortedSelectedDates])
 
     // Calculate total amount: (total selected time slots across all dates) * rate
+    // useEffect(() => {
+    //     if (!area || !selectedCourtId) {
+    //         setTotalAmount(0)
+    //         return
+    //     }
+
+    //     const selectedCourt = area.courts.find(
+    //         (court) => court.courtId === selectedCourtId
+    //     )
+    //     if (!selectedCourt || !selectedCourt.rate) {
+    //         setTotalAmount(0)
+    //         return
+    //     }
+
+    //     const totalHours = Object.values(selectedTimeSlotsByDate).reduce(
+    //         (sum, times) => sum + times.length,
+    //         0
+    //     )
+
+    //     setTotalAmount(totalHours * selectedCourt.rate)
+    // }, [area, selectedCourtId, selectedTimeSlotsByDate])
+
+    //calculate total amount whenever selected court, time slots, or equipments change
     useEffect(() => {
         if (!area || !selectedCourtId) {
             setTotalAmount(0)
             return
         }
 
-        const selectedCourt = area.courts.find(
-            (court) => court.courtId === selectedCourtId
-        )
-        if (!selectedCourt || !selectedCourt.rate) {
-            setTotalAmount(0)
-            return
+        const selectedCourt = area.courts.find(c => c.courtId === selectedCourtId)
+        const courtCost = (selectedCourt?.rate || 0) * Object.values(selectedTimeSlotsByDate).reduce((sum, times) => sum + times.length, 0)
+
+        // Equipment rental cost
+        let equipmentCost = 0
+        Object.keys(selectedEquipments).forEach(eqId => {
+            const qty = selectedEquipments[eqId]
+            const equipment = area.equipments?.find(eq => eq.id === eqId)
+            if (equipment) {
+                equipmentCost += equipment.price * qty
+            }
+        })
+
+        setTotalAmount(courtCost + equipmentCost)
+    }, [area, selectedCourtId, selectedTimeSlotsByDate, selectedEquipments])
+
+    useEffect(() => {
+        if (authLoading || !user) return
+
+        const fetchUserProfile = async () => {
+            try {
+                const userRef = doc(db, 'users', user.uid)
+                const userSnap = await getDoc(userRef)
+
+                if (userSnap.exists()) {
+                    const data = userSnap.data()
+
+                    const fullName = user.displayName || ''
+                    const [first = '', last = ''] = fullName.split(' ')
+
+                    setFormData({
+                        firstName: data.firstName || first || '',
+                        lastName: data.lastName || last || '',
+                        email: data.email || user.email || '',
+                        gcashNumber: data.phone || '',
+                    })
+
+                    // Also update display version
+                    setDisplayFormData({
+                        firstName: data.firstName || first || '',
+                        lastName: data.lastName || last || '',
+                        email: data.email || user.email || '',
+                        gcashNumber: data.phone || '',
+                    })
+                } else {
+                    // Fallback to Auth data only
+                    setFormData({
+                        firstName: '',
+                        lastName: '',
+                        email: user.email || '',
+                        gcashNumber: '',
+                    })
+                    setDisplayFormData({
+                        firstName: '',
+                        lastName: '',
+                        email: user.email || '',
+                        gcashNumber: '',
+                    })
+                }
+            } catch (err) {
+                console.error('Failed to fetch user profile:', err)
+            }
         }
 
-        const totalHours = Object.values(selectedTimeSlotsByDate).reduce(
-            (sum, times) => sum + times.length,
-            0
-        )
-
-        setTotalAmount(totalHours * selectedCourt.rate)
-    }, [area, selectedCourtId, selectedTimeSlotsByDate])
+        fetchUserProfile()
+    }, [user, authLoading])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -258,20 +357,22 @@ export default function CreateBooking() {
         }
 
         const payload = {
+            userId: user?.uid,
             firstName: formData.firstName.trim(),
             lastName: formData.lastName.trim(),
             email: formData.email.trim(),
-            gcashNumber: formData.gcashNumber.trim(),
+            gcashNumber: `+63${formData.gcashNumber.trim()}`,
             areaId: area?.id,
             courtId: selectedCourtId,
             slots,
             amount: totalAmount,
+            rentedEquipments,
         }
 
         try {
             setLoading(true)
 
-            const res = await fetch(`${apiBaseUrl}/api/bookings/create/`, {
+            const res = await fetch(`${apiBaseUrl}/api/booking/create/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -285,7 +386,6 @@ export default function CreateBooking() {
             }
 
             const result = await res.json()
-            console.log('Booking submitted:', result)
 
             // Send confirmation email
             const emailPayload = {
@@ -299,9 +399,10 @@ export default function CreateBooking() {
                 dateTimeSlots: slots,
                 managerName: `${area?.manager?.firstName} ${area?.manager?.lastName}`,
                 gcashNumber: area?.manager?.gcashNumber,
+                qrCode: area?.manager?.qrCode,
             }
 
-            await fetch(`${apiBaseUrl}/api/bookings/send-details-to-email/`, {
+            await fetch(`${apiBaseUrl}/api/booking/send-details-to-email/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -322,19 +423,6 @@ export default function CreateBooking() {
     }
 
     const handleCloseDialog = () => {
-        // Reset form
-        setFormData({
-            firstName: '',
-            lastName: '',
-            email: '',
-            gcashNumber: '',
-        })
-        setDisplayFormData({
-            firstName: '',
-            lastName: '',
-            email: '',
-            gcashNumber: '',
-        })
         setSelectedDates([])
         setSelectedTimeSlotsByDate({})
         setSelectedCourtId(null)
@@ -357,13 +445,29 @@ export default function CreateBooking() {
         times: selectedTimeSlotsByDate[formatDateKey(date)] || [],
     }))
 
-    const searchParams = useSearchParams()
-    const areaId = searchParams.get('areaId')
+    // Compute rented equipments in component scope so it can be used in JSX
+    const rentedEquipments = useMemo((): { equipmentId: string; name: string; quantity: number; price: number }[] => {
+        if (!area) return []
+
+        return Object.keys(selectedEquipments)
+            .map((eqId) => {
+                const equipment = area.equipments?.find((eq) => eq.id === eqId)
+                if (!equipment) return null
+
+                return {
+                    equipmentId: eqId,
+                    name: equipment.name,
+                    quantity: selectedEquipments[eqId],
+                    price: equipment.price,
+                }
+            })
+            .filter((e): e is { equipmentId: string; name: string; quantity: number; price: number } => e !== null)
+    }, [area, selectedEquipments])
 
     useEffect(() => {
         const fetchAreaDetails = async () => {
             try {
-                const res = await fetch(`${apiBaseUrl}/api/areas/${areaId}/`)
+                const res = await fetch(`${apiBaseUrl}/api/booking/areas/${areaId}/`)
                 if (!res.ok) {
                     const errText = await res.text()
                     throw new Error(`Failed to fetch location: ${res.status} - ${errText}`)
@@ -374,7 +478,6 @@ export default function CreateBooking() {
                 if (!data.areaName) throw new Error('Invalid location data received')
                 if (!data.courts) throw new Error('Invalid courts data received')
 
-                console.log(data)
                 setArea(data)
             } catch (err: any) {
                 console.error('Fetch error:', err)
@@ -407,14 +510,66 @@ export default function CreateBooking() {
         if (idx !== -1) setActiveDateIndex(idx)
     }
 
-    const isTimeReserved = (dateKey: string | null, time: string) => {
-        if (!dateKey || !area?.bookings) return false
+    const getCurrentDateTime = () => {
+        return new Date(); // current local time
+    };
 
-        const bookingForDate = area.bookings.find((b) => b.date === dateKey)
-        if (!bookingForDate) return false
+    const parseTimeToDate = (timeStr: string, referenceDate: Date = new Date()): Date | null => {
+        const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!match) return null;
 
-        return bookingForDate.time.includes(time)
-    }
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const period = match[3].toUpperCase();
+
+        // Convert 12-hour to 24-hour
+        if (period === 'PM' && hours !== 12) {
+            hours += 12;
+        }
+        if (period === 'AM' && hours === 12) {
+            hours = 0;
+        }
+
+        const result = new Date(referenceDate);
+        result.setHours(hours, minutes, 0, 0);
+
+        return result;
+    };
+
+    const isTimeReservedOrPast = (dateKey: string | null, time: string) => {
+        if (!dateKey || !area?.bookings) return false;
+
+        const currentDateTime = getCurrentDateTime();
+        const todayKey = formatDateKey(currentDateTime);
+
+        // 1. Check if already reserved by others
+        const bookingForDate = area.bookings.find((b) => b.date === dateKey);
+        if (bookingForDate && bookingForDate.time.includes(time)) {
+            return true;
+        }
+
+        // 2. For today's date only: disable slots that are past or ongoing
+        if (dateKey === todayKey) {
+            try {
+                const [startStr] = time.split(" - ");
+                const startDateTime = parseTimeToDate(startStr.trim(), currentDateTime);
+
+                if (!startDateTime) {
+                    console.warn("Invalid time format:", startStr);
+                    return false;
+                }
+
+                // If slot start is before or at current time → disable
+                if (startDateTime <= currentDateTime) {
+                    return true;
+                }
+            } catch (e) {
+                console.warn("Failed to parse time:", time, e);
+            }
+        }
+
+        return false;
+    };
 
     const applyActiveTimesToAllDates = () => {
         if (!activeDateKey) return
@@ -431,7 +586,7 @@ export default function CreateBooking() {
 
                 // apply only times that are NOT reserved on that date
                 const allowedTimes = selectedTimesActive.filter(
-                    (time) => !isTimeReserved(dateKey, time)
+                    (time) => !isTimeReservedOrPast(dateKey, time)
                 )
 
                 // merge without duplicates
@@ -511,17 +666,35 @@ export default function CreateBooking() {
 
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    GCash Number
+                                    Phone Number
                                 </label>
-                                <Input
-                                    type="text"
-                                    name="gcashNumber"
-                                    placeholder="+63 XXXXXXXXXX"
-                                    value={displayFormData.gcashNumber}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    required
-                                />
+                                <div className="flex">
+                                    {/* Fixed Prefix */}
+                                    <div className="bg-gray-100 border border-r-0 border-gray-300 rounded-lg mr-2 px-2 text-gray-600 font-medium flex items-center">
+                                        +63
+                                    </div>
+
+                                    {/* Input for digits only */}
+                                    <Input
+                                        type="tel"
+                                        name="gcashNumber"
+                                        placeholder="9123456789"
+                                        value={displayFormData.gcashNumber}
+                                        onChange={(e) => {
+                                            // Allow only numbers, max 10 digits
+                                            const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+
+                                            handleInputChange({
+                                                target: {
+                                                    name: "gcashNumber",
+                                                    value
+                                                }
+                                            } as React.ChangeEvent<HTMLInputElement>);
+                                        }}
+                                        className="flex-1 px-4 py-3 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        required
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -583,6 +756,43 @@ export default function CreateBooking() {
                             </Carousel>
                         </div>
                     </div>
+                    {area?.equipments && area.equipments.length > 0 && (
+                        <div className="border rounded-lg p-6">
+                            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                🏸 Equipment Rental
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {area.equipments.map((eq) => (
+                                    <div key={eq.id} className="flex items-center justify-between border rounded-lg p-4">
+                                        <div>
+                                            <p className="font-medium">{eq.name}</p>
+                                            <p className="text-sm text-gray-600">₱{eq.price} each • {eq.quantity} available</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleEquipmentQuantityChange(eq.id, (selectedEquipments[eq.id] || 0) - 1)}
+                                                className="w-8 h-8 border rounded-lg flex items-center justify-center hover:bg-gray-100"
+                                            >
+                                                −
+                                            </button>
+                                            <span className="w-8 text-center font-medium">
+                                                {selectedEquipments[eq.id] || 0}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleEquipmentQuantityChange(eq.id, (selectedEquipments[eq.id] || 0) + 1)}
+                                                disabled={(selectedEquipments[eq.id] || 0) >= eq.quantity}
+                                                className="w-8 h-8 border rounded-lg flex items-center justify-center hover:bg-gray-100 disabled:opacity-50"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Calendar + Time Slots */}
                     <div className="flex flex-col md:flex-row gap-6">
@@ -640,7 +850,7 @@ export default function CreateBooking() {
                             {/* Slots Grid */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 max-h-66 gap-2 overflow-y-auto">
                                 {timeSlots.map((time) => {
-                                    const reserved = isTimeReserved(activeDateKey, time)
+                                    const reserved = isTimeReservedOrPast(activeDateKey, time)
 
                                     return (
                                         <button
@@ -649,8 +859,8 @@ export default function CreateBooking() {
                                             disabled={!activeDateKey || reserved}
                                             onClick={() => toggleTimeSlotForActiveDate(time)}
                                             className={`p-3 rounded-lg border-2 text-sm font-medium transition
-                                                        disabled:opacity-50 disabled:cursor-not-allowed 
-                                                    ${reserved
+                                                            disabled:opacity-50 disabled:cursor-not-allowed 
+                                                        ${reserved
                                                     ? "border-gray-200 bg-gray-100 text-gray-400"
                                                     : selectedTimesActive.includes(time)
                                                         ? "border-blue-600 bg-blue-100 text-blue-800"
@@ -726,12 +936,13 @@ export default function CreateBooking() {
                     totalAmount,
                     selectedDates: selectedDates.length,
                     dateTimeSlots,
+                    selectedEquipments: rentedEquipments,
                 }}
                 managerData={{
                     firstName: area?.manager?.firstName || '',
                     lastName: area?.manager?.lastName || '',
                     gcashNumber: area?.manager?.gcashNumber || '',
-                    gcashQrUrl: area?.manager?.gcashQrUrl,
+                    qrCode: area?.manager?.qrCode,
                 }}
                 bookingResult={bookingResult}
             />

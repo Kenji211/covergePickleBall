@@ -60,11 +60,10 @@ export default function BookingAreaPage() {
             }
 
             try {
-                const res = await fetch(`${apiBaseUrl}/api/areas/fetch/`);
+                const res = await fetch(`${apiBaseUrl}/api/booking/areas/fetch/`);
                 if (!res.ok) throw new Error("Failed to fetch areas");
 
                 const data = await res.json();
-                console.log("Fetched areas:", data);
                 setAreas(data);
             } catch (err) {
                 console.error("Fetch error:", err);

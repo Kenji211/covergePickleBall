@@ -13,7 +13,7 @@ const oswald = Oswald({
 })
 
 export const metadata: Metadata = {
-  title: "PickBook",
+  title: "PickleBook",
   description: "Converge Pickleball Reservation System",
 };
 
